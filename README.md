@@ -5,8 +5,6 @@ The OrKa Vector REST API
 
 ## run dev server
 
-TODO actually implement this
-
 start application
 ```shell
 FLASK_APP=orka_vector_api FLASK_ENV=development flask run
