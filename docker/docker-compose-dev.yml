@@ -3,10 +3,10 @@ services:
     shogun-postgis:
         image: mdillon/postgis:9.6-alpine
         ports:
-            - 5555:5432
+            - 5556:5432
         environment:
-            POSTGRES_USER: orka
-            POSTGRES_PASSWORD: orka
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
         volumes:
             - ./postgis/postgresql_init_data:/docker-entrypoint-initdb.d
             - ./postgis/postgresql_data:/var/lib/postgresql/data:Z
