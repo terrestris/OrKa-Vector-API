@@ -2,6 +2,10 @@ import os
 
 from flask import Flask
 
+from orka_vector_api.orka_db import OrkaDB
+
+db = OrkaDB()
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -17,19 +21,13 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    # app.config.from_envvar('CONFIG_ABS_PATH')
-
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
     except OSError:
         pass
 
-    from orka_vector_api.db import db, migrate
     db.init_app(app)
-    migrate.init_app(app, db)
-
-    import orka_vector_api.models
 
     from orka_vector_api.views.status import status
     from orka_vector_api.views.jobs import jobs
