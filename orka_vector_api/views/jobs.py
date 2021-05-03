@@ -3,7 +3,8 @@ import uuid
 from flask import Blueprint, request, abort, current_app
 
 from orka_vector_api import db
-from orka_vector_api.helper import create_or_append_geopackage, create_job, update_job, get_job_by_id, delete_job_by_id
+from orka_vector_api.helper import create_job, update_job, get_job_by_id, delete_job_by_id, create_geopackage, \
+    get_layers_from_file, get_geopackage_sql, delete_geopackage
 
 jobs = Blueprint('jobs', __name__, url_prefix='/jobs')
 
@@ -14,16 +15,27 @@ def add_job():
         post_body = request.json
 
         # TODO check bbox area size
+        # bbox is always in 4326
         bbox = post_body.get('bbox')
-        if bbox is None:
+        if bbox is None or not len(bbox) == 4:
             abort(400)
+
+        transform_to = post_body.get('transform_to')
 
         conn = db.pool.getconn()
         data_id = str(uuid.uuid4())
-        job_id = create_job(conn, current_app, bbox, data_id)
-        # update_job(job_id, conn, current_app, status='RUNNING')
-        # TODO find a way to trigger this method but returning a response beforehand (worker)
-        # gpkg = create_or_append_geopackage(bbox, conn, current_app)
+        job_id = create_job(conn, current_app, bbox, data_id, transform_to=transform_to)
+        current_app.logger.info(f'Added job with id {job_id}')
+        update_job(job_id, conn, current_app, status='RUNNING')
+        layers = get_layers_from_file(current_app)
+        layer_sqls = [(layer['layername'], get_geopackage_sql(bbox, conn, **layer, transform_to=transform_to)) for layer in layers]
+        # TODO move this into dedicated process
+        created = create_geopackage(data_id, current_app, layer_sqls)
+        if created:
+            update_job(job_id, conn, current_app, status='CREATED')
+        else:
+            update_job(job_id, conn, current_app, status='ERROR')
+
         db.pool.putconn(conn)
         return json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
     else:
@@ -35,16 +47,27 @@ def get_job(job_id):
     conn = db.pool.getconn()
     job = get_job_by_id(job_id, conn, current_app)
     db.pool.putconn(conn)
+    # TODO create enum for job status
+    if job.get('status') != 'CREATED':
+        job.pop('data_id')
+
     return job
 
 
 @jobs.route('/<int:job_id>', methods=['DELETE'])
 def delete_job(job_id):
     conn = db.pool.getconn()
-    # TODO remove gpgk file
+    job = get_job_by_id(job_id, conn, current_app)
+    if job is None:
+        abort(400)
+
+    delete_geopackage(job.get('data_id'), conn, current_app)
     deleted = delete_job_by_id(job_id, conn, current_app)
     db.pool.putconn(conn)
     if not deleted:
+        current_app.logger.info(f'Could not delete job with id {job_id}')
         return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+
+    current_app.logger.info(f'Deleted job with id {job_id}')
 
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}

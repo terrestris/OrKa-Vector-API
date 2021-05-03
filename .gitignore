@@ -132,5 +132,6 @@ dmypy.json
 .idea/
 
 # docker
-docker/postgis/postgresql_data
+/docker/postgis/postgresql_data
+/data/
 

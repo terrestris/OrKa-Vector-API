@@ -1,3 +1,5 @@
+import os
+
 from psycopg2.extras import RealDictCursor
 from psycopg2.sql import SQL, Identifier, Composed, Placeholder
 
@@ -72,10 +74,6 @@ def get_job_by_id(job_id, conn, app):
         cur.execute(q, {'job_id': job_id})
         job = cur.fetchone()
 
-    # TODO create enum for job status
-    if not job.get('status') == 'READY':
-        job.pop('data_id')
-
     return job
 
 
@@ -115,6 +113,17 @@ def delete_job_by_id(job_id, conn, app):
         conn.commit()
 
     return deleted_rows == 1
+
+
+def delete_geopackage(data_id, conn, app):
+    gpkg_path = app.config['ORKA_GPKG_PATH']
+    filename = data_id + '.gpkg'
+    filepath = os.path.join(gpkg_path, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        return True
+    else:
+        return False
 
 
 def _is_sane(key, val):
