@@ -28,6 +28,7 @@ def create_geopackage(data_id, app, layer_sqls):
 
     for layername, layer_sql in layer_sqls:
         cmd = _get_geopackage_cmd(filename, layername, layer_sql, **db_props)
+        app.logger.info(cmd)
         proc = subprocess.run(cmd, shell=True, capture_output=True)
         app.logger.info(f'Exporting {layername} exited with code {proc.returncode}')
         if proc.stderr:
