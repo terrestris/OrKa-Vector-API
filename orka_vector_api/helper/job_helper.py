@@ -3,6 +3,8 @@ import os
 from psycopg2.extras import RealDictCursor
 from psycopg2.sql import SQL, Identifier, Composed, Placeholder
 
+from orka_vector_api.enums import Status
+
 
 def create_job(conn, app, bbox, data_id, transform_to=None):
     schema = app.config['ORKA_DB_SCHEMA']
@@ -15,7 +17,7 @@ def create_job(conn, app, bbox, data_id, transform_to=None):
         'maxx': float(bbox[2]),
         'maxy': float(bbox[3]),
         'transform_to': transform_to,
-        'status': 'INIT',
+        'status': Status.INIT.value,
         'data_id': data_id
     }
 
@@ -134,7 +136,7 @@ def count_running_jobs(conn, app):
     )
 
     with conn.cursor() as cur:
-        cur.execute(q, {'status': 'RUNNING'})
+        cur.execute(q, {'status': Status.RUNNING.value})
         count = cur.fetchone()[0]
         conn.commit()
 

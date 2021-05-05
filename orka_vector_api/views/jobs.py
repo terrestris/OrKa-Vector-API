@@ -3,8 +3,9 @@ import uuid
 from flask import Blueprint, request, abort, current_app
 
 from orka_vector_api import db
+from orka_vector_api.enums import Status
 from orka_vector_api.helper import create_job, update_job, get_job_by_id, delete_job_by_id, \
-    get_layers_from_file, get_geopackage_sql, delete_geopackage, create_gpkg_threaded, threads_available
+    delete_geopackage, create_gpkg_threaded, threads_available
 
 jobs = Blueprint('jobs', __name__, url_prefix='/jobs')
 
@@ -30,11 +31,9 @@ def add_job():
 
         job_id = create_job(conn, current_app, bbox, data_id, transform_to=transform_to)
         current_app.logger.info(f'Added job with id {job_id}')
-        update_job(job_id, conn, current_app, status='RUNNING')
-        layers = get_layers_from_file(current_app)
-        layer_sqls = [(layer['layername'], get_geopackage_sql(bbox, conn, **layer, transform_to=transform_to)) for layer in layers]
+        update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
-        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, layer_sqls)
+        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
 
         db.pool.putconn(conn)
         return json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
@@ -47,8 +46,7 @@ def get_job(job_id):
     conn = db.pool.getconn()
     job = get_job_by_id(job_id, conn, current_app)
     db.pool.putconn(conn)
-    # TODO create enum for job status
-    if job.get('status') != 'CREATED':
+    if job.get('status') != Status.CREATED.value:
         job.pop('data_id')
 
     return job
