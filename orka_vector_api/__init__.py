@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from orka_vector_api.orka_db import OrkaDB
 
@@ -37,4 +38,7 @@ def create_app(test_config=None):
     app.register_blueprint(jobs)
     app.register_blueprint(data)
 
-    return app
+    if app.config['ENV'] == 'development':
+        return app
+
+    return ProxyFix(app, x_for=1, x_prefix=1)

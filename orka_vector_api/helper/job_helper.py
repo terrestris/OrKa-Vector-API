@@ -126,6 +126,30 @@ def delete_geopackage(data_id, conn, app):
         return False
 
 
+def count_running_jobs(conn, app):
+    schema = app.config['ORKA_DB_SCHEMA']
+    q = SQL('SELECT count(*) FROM {schema}.{table} WHERE status = %(status)s;').format(
+        schema=Identifier(schema),
+        table=Identifier('jobs')
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(q, {'status': 'RUNNING'})
+        count = cur.fetchone()[0]
+        conn.commit()
+
+    return count
+
+
+def threads_available(conn, app):
+    max_threads = app.config['ORKA_MAX_THREADS']
+    running_jobs = count_running_jobs(conn, app)
+    # we have a watchdog for each thread, so we have to double it
+    running_threads = running_jobs * 2
+    free_threads = max_threads - running_threads
+    return free_threads >= 2
+
+
 def _is_sane(key, val):
     prop_map = {
         'minx': float,

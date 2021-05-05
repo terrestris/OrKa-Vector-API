@@ -25,4 +25,5 @@ def get_data(data_id):
     db.pool.putconn(conn)
 
     current_app.logger.info(f'Provided download for {filename} of job {job_id}.')
+    # TODO remove file after download
     return send_from_directory(os.path.abspath(gpkg_path), filename,  mimetype='application/geopackage+sqlite3')
