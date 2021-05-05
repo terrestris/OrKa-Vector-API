@@ -41,7 +41,9 @@ that allows following additional configs:
 - `ORKA_DB_MIN_CONNECTION` = application database min connections
 - `ORKA_DB_MAX_CONNECTION` = application database max connections
 - `ORKA_GPKG_PATH` = path to where the created gpkg files should be placed
-- `ORKA_LAYERS_YML` = path to yaml file that contains the layer specs. This file must be located within the instance folder
+- `ORKA_LAYERS_YML` = path to yaml file that contains the layer specs. This file must be located within the instance folder 
+- `ORKA_THREAD_TIMEOUT` = timeout in seconds after which a running thread should be killed.
+- `ORKA_MAX_THREADS` = number of allowed threads
 
 Example config.py:
 
@@ -63,6 +65,8 @@ ORKA_DB_MAX_CONNECTION = 1
 
 ORKA_GPKG_PATH = 'data/'
 ORKA_LAYERS_YML = 'layers.yml'
+ORKA_THREAD_TIMEOUT = 60
+ORKA_MAX_THREADS = 4
 ```
 
 ## layers.yml

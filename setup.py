@@ -8,5 +8,9 @@ setup(
     zip_safe=False,
     install_requires=[
         'flask',
+        'psycopg2-binary',
+        'PyYAML',
+        'uuid',
+        'requests'
     ],
 )
