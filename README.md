@@ -16,6 +16,14 @@ FLASK_APP=orka_vector_api FLASK_ENV=development flask run
 waitress-serve --call 'orka_vector_api:create_app'
 ```
 
+## DB
+
+POSTGIS extension needs to be installed on orka db.
+
+```
+create extension postgis;
+```
+
 # build
 
 see https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
@@ -46,7 +54,8 @@ that allows following additional configs:
 - `ORKA_MAX_THREADS` = number of allowed threads
 - `ORKA_LOG_FILE` = path to log file
 - `ORKA_STYLE_PATH` = path to the file that contains all styles, etc.
-- `ORKA-STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
+- `ORKA_STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
+- `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm.
 
 Example config.py:
 
@@ -74,4 +83,5 @@ ORKA_MAX_THREADS = 4
 ORKA_LOG_FILE = '/var/log/orka/orka.log'
 ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
+ORKA_MAX_BBOX = 10000
 ```

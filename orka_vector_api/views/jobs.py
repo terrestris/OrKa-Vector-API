@@ -5,7 +5,7 @@ from flask import Blueprint, request, abort, current_app
 from orka_vector_api import db
 from orka_vector_api.enums import Status
 from orka_vector_api.helper import create_job, update_job, get_job_by_id, delete_job_by_id, \
-    delete_geopackage, create_gpkg_threaded, threads_available
+    delete_geopackage, create_gpkg_threaded, threads_available, bbox_size_allowed
 
 jobs = Blueprint('jobs', __name__, url_prefix='/jobs')
 
@@ -19,12 +19,17 @@ def add_job():
         # bbox is always in 4326
         bbox = post_body.get('bbox')
         if bbox is None or not len(bbox) == 4:
+            current_app.logger.info('Could not add job. Invalid BBOX.')
             abort(400)
 
         transform_to = post_body.get('transform_to')
 
         conn = db.pool.getconn()
         data_id = str(uuid.uuid4())
+
+        if not bbox_size_allowed(conn, current_app, bbox):
+            current_app.logger.info('Could not add job. BBOX size not allowed.')
+            abort(400)
 
         if not threads_available(conn, current_app):
             current_app.logger.info('Could not add job. No free threads available.')

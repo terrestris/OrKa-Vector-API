@@ -157,6 +157,25 @@ def threads_available(conn, app):
     return free_threads >= 2
 
 
+def bbox_size_allowed(conn, app, bbox):
+    minx = float(bbox[0])
+    miny = float(bbox[1])
+    maxx = float(bbox[2])
+    maxy = float(bbox[3])
+
+    max_area = app.config['ORKA_MAX_BBOX']
+    q = 'SELECT ST_AREA(st_transform(l.geom, 3857))/1000000 from (select \'SRID=4326;POLYGON((%(minx)s %(miny)s,%(maxx)s %(miny)s, %(maxx)s %(maxy)s,%(minx)s %(maxy)s,%(minx)s %(miny)s))\' :: geometry geom) as l;'
+    with conn.cursor() as cur:
+        cur.execute(q, {
+            'minx': minx,
+            'miny': miny,
+            'maxx': maxx,
+            'maxy': maxy
+        })
+        area = cur.fetchone()[0]
+    return area <= max_area
+
+
 def _is_sane(key, val):
     prop_map = {
         'minx': float,
