@@ -19,11 +19,11 @@ def _get_gpkg_cmd(filename, layername, sql, host=None, port=None, database=None,
     return cmd
 
 
-def _create_gpkg(data_id, bbox, e, db_props=None, gpkg_path='', layers_path=''):
+def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpkg_path='', layers_path=''):
     file_name = os.path.abspath(os.path.join(gpkg_path, data_id + '.gpkg'))
     layer_sqls = _get_layer_sqls(layers_path)
     for layer_name, layer_sql in layer_sqls.items():
-        if e.isSet():
+        if timeout_e is not None and timeout_e.isSet():
             break
         gpkg_sql = _get_gpkg_sql(layer_sql, bbox)
         gpkg_sql_escaped = _escape_sql(gpkg_sql)
@@ -31,9 +31,15 @@ def _create_gpkg(data_id, bbox, e, db_props=None, gpkg_path='', layers_path=''):
         cmd = _get_gpkg_cmd(file_name, layer_name, gpkg_sql_escaped, **db_props)
         proc = subprocess.run(cmd, shell=True, capture_output=True)
         if proc.stderr:
-            raise Exception(proc.stderr.decode())
+            if error_e is not None:
+                error_e.set()
+            break
+            # raise Exception(f'Error creating {file_name}: ' + proc.stderr.decode())
         if proc.returncode != 0:
-            raise Exception('Creating Geopackage exited with non-zero code')
+            if error_e is not None:
+                error_e.set()
+            break
+            # raise Exception(f'Error creating {file_name}: Program exited with non-zero code.')
 
 
 def _escape_sql(sql):
@@ -58,11 +64,12 @@ def _get_layer_sqls(layers_path):
 
 def _get_gpkg_sql(layer_sql, bbox):
     bbox_str = ', '.join([str(b) for b in bbox])
-    with_sql = f'WITH l AS ({layer_sql})'
-    select_sql = 'SELECT * FROM l'
-    srid_sql = 'SELECT ST_SRID(l.geometry) AS srid FROM l LIMIT 1'
-    where_sql = f'l.geometry && ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ({srid_sql}))'
-    return f'{with_sql} {select_sql} WHERE {where_sql};'
+    # we use && (overlaps) instead of @> (contains), as we want to include all geometries that
+    # in some way lie within the bbox
+    # see https://www.postgresql.org/docs/9.1/functions-array.htm
+    return (f'SELECT * FROM ({layer_sql}) AS l '
+            f'WHERE l.geometry '
+            f'&& ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ST_SRID(l.geometry));')
 
 
 def create_gpkg_threaded(app, base_url, job_id, *args):
@@ -95,8 +102,9 @@ def create_gpkg_threaded(app, base_url, job_id, *args):
 
 
 def _create_gpkg_threaded(response_url, *args, timeout=None, **kwargs):
-    event = Event()
-    thread = Thread(target=_create_gpkg, args=(*args, event), kwargs=kwargs)
+    timeout_e = Event()
+    error_e = Event()
+    thread = Thread(target=_create_gpkg, args=args, kwargs={'timeout_e': timeout_e, 'error_e': error_e, **kwargs})
     thread.start()
 
     killed = False
@@ -104,11 +112,12 @@ def _create_gpkg_threaded(response_url, *args, timeout=None, **kwargs):
         thread.join(timeout)
         if thread.is_alive():
             killed = True
-        event.set()
+        timeout_e.set()
     thread.join()
-    # TODO check if thread threw exception
-    if killed:
-        # TODO check if this works with proxy
+
+    if error_e.isSet():
+        return put(response_url, json={'status': Status.ERROR.value})
+    if killed or error_e.isSet():
         return put(response_url, json={'status': Status.TIMEOUT.value})
     else:
         return put(response_url, json={'status': Status.CREATED.value})

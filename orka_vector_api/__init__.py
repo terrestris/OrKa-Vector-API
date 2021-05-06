@@ -3,6 +3,8 @@ import os
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from orka_vector_api import logging_config
+from orka_vector_api.logging_config import setup_file_logger
 from orka_vector_api.orka_db import OrkaDB
 
 db = OrkaDB()
@@ -27,6 +29,9 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    file_logger = setup_file_logger(logfile=app.config['ORKA_LOG_FILE'])
+    app.logger.addHandler(file_logger)
 
     db.init_app(app)
 

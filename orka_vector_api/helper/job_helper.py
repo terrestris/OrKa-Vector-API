@@ -51,6 +51,11 @@ def update_job(job_id, conn, app, **kwargs):
         data=SQL(',').join(vals)
     )
 
+    if 'status' in kwargs.keys():
+        status = kwargs.get('status')
+        if status == Status.TIMEOUT.value or status == Status.ERROR.value:
+            app.logger.info(f'Setting status to {status} for job with id {job_id}')
+
     with conn.cursor() as cur:
         cur.execute(q, {
             **kwargs,

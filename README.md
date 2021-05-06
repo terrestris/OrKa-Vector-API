@@ -44,6 +44,9 @@ that allows following additional configs:
 - `ORKA_LAYERS_PATH` = path to folder containing the layer sqls. This file must be located within the instance folder 
 - `ORKA_THREAD_TIMEOUT` = timeout in seconds after which a running thread should be killed.
 - `ORKA_MAX_THREADS` = number of allowed threads
+- `ORKA_LOG_FILE` = path to log file
+- `ORKA_STYLE_PATH` = path to the file that contains all styles, etc.
+- `ORKA-STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
 
 Example config.py:
 
@@ -67,4 +70,8 @@ ORKA_GPKG_PATH = 'data/'
 ORKA_LAYERS_PATH = 'layers/'
 ORKA_THREAD_TIMEOUT = 60
 ORKA_MAX_THREADS = 4
+
+ORKA_LOG_FILE = '/var/log/orka/orka.log'
+ORKA_STYLE_PATH = 'styles/'
+ORKA_STYLE_FILE = 'style.zip'
 ```
