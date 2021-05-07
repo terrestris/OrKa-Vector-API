@@ -24,6 +24,14 @@ def get_data(data_id):
 
     db.pool.putconn(conn)
 
-    current_app.logger.info(f'Provided download for {filename} of job {job_id}.')
-    # TODO remove file after download
+    current_app.logger.debug(f'Provided download for {filename} of job {job_id}.')
     return send_from_directory(os.path.abspath(gpkg_path), filename,  mimetype='application/geopackage+sqlite3')
+
+
+@data.route('/styles', methods=['GET'])
+def get_styles_zip():
+    style_path = current_app.config['ORKA_STYLE_PATH']
+    file_name = current_app.config['ORKA_STYLE_FILE']
+
+    current_app.logger.debug(f'Provided download for style file {file_name}.')
+    return send_from_directory(os.path.abspath(style_path), file_name, mimetype='application/zip')

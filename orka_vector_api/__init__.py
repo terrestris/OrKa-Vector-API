@@ -3,14 +3,22 @@ import os
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from orka_vector_api import logging_config
+from orka_vector_api.logging_config import setup_file_logger
 from orka_vector_api.orka_db import OrkaDB
 
 db = OrkaDB()
 
 
 def create_app(test_config=None):
+    app_kwargs = {
+        'instance_relative_config': True
+    }
+    if os.environ.get('FLASK_ENV', '') != 'development':
+        app_kwargs['instance_path'] = f'/var/{__name__}'
+
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, **app_kwargs)
     app.config.from_mapping(
         SECRET_KEY='dev'
     )
@@ -27,6 +35,9 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    file_logger = setup_file_logger(logfile=app.config['ORKA_LOG_FILE'])
+    app.logger.addHandler(file_logger)
 
     db.init_app(app)
 

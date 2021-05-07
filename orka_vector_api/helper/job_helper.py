@@ -3,6 +3,8 @@ import os
 from psycopg2.extras import RealDictCursor
 from psycopg2.sql import SQL, Identifier, Composed, Placeholder
 
+from orka_vector_api.enums import Status
+
 
 def create_job(conn, app, bbox, data_id, transform_to=None):
     schema = app.config['ORKA_DB_SCHEMA']
@@ -15,7 +17,7 @@ def create_job(conn, app, bbox, data_id, transform_to=None):
         'maxx': float(bbox[2]),
         'maxy': float(bbox[3]),
         'transform_to': transform_to,
-        'status': 'INIT',
+        'status': Status.INIT.value,
         'data_id': data_id
     }
 
@@ -48,6 +50,11 @@ def update_job(job_id, conn, app, **kwargs):
         table=Identifier('jobs'),
         data=SQL(',').join(vals)
     )
+
+    if 'status' in kwargs.keys():
+        status = kwargs.get('status')
+        if status == Status.TIMEOUT.value or status == Status.ERROR.value:
+            app.logger.info(f'Setting status to {status} for job with id {job_id}')
 
     with conn.cursor() as cur:
         cur.execute(q, {
@@ -134,7 +141,7 @@ def count_running_jobs(conn, app):
     )
 
     with conn.cursor() as cur:
-        cur.execute(q, {'status': 'RUNNING'})
+        cur.execute(q, {'status': Status.RUNNING.value})
         count = cur.fetchone()[0]
         conn.commit()
 
@@ -148,6 +155,25 @@ def threads_available(conn, app):
     running_threads = running_jobs * 2
     free_threads = max_threads - running_threads
     return free_threads >= 2
+
+
+def bbox_size_allowed(conn, app, bbox):
+    minx = float(bbox[0])
+    miny = float(bbox[1])
+    maxx = float(bbox[2])
+    maxy = float(bbox[3])
+
+    max_area = app.config['ORKA_MAX_BBOX']
+    q = 'SELECT ST_AREA(st_transform(geom, 3857))/1000000 from ST_MakeEnvelope(%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, 4326) as geom;'
+    with conn.cursor() as cur:
+        cur.execute(q, {
+            'minx': minx,
+            'miny': miny,
+            'maxx': maxx,
+            'maxy': maxy
+        })
+        area = cur.fetchone()[0]
+    return area <= max_area
 
 
 def _is_sane(key, val):

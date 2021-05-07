@@ -16,6 +16,14 @@ FLASK_APP=orka_vector_api FLASK_ENV=development flask run
 waitress-serve --call 'orka_vector_api:create_app'
 ```
 
+## DB
+
+POSTGIS extension needs to be installed on orka db.
+
+```
+create extension postgis;
+```
+
 # build
 
 see https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
@@ -41,9 +49,13 @@ that allows following additional configs:
 - `ORKA_DB_MIN_CONNECTION` = application database min connections
 - `ORKA_DB_MAX_CONNECTION` = application database max connections
 - `ORKA_GPKG_PATH` = path to where the created gpkg files should be placed
-- `ORKA_LAYERS_YML` = path to yaml file that contains the layer specs. This file must be located within the instance folder 
+- `ORKA_LAYERS_PATH` = path to folder containing the layer sqls. This folder must be located within the instance folder
 - `ORKA_THREAD_TIMEOUT` = timeout in seconds after which a running thread should be killed.
 - `ORKA_MAX_THREADS` = number of allowed threads
+- `ORKA_LOG_FILE` = path to log file
+- `ORKA_STYLE_PATH` = path to the file that contains all styles, etc.
+- `ORKA_STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
+- `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm.
 
 Example config.py:
 
@@ -64,38 +76,12 @@ ORKA_DB_MIN_CONNECTION = 1
 ORKA_DB_MAX_CONNECTION = 1
 
 ORKA_GPKG_PATH = 'data/'
-ORKA_LAYERS_YML = 'layers.yml'
+ORKA_LAYERS_PATH = 'layers/'
 ORKA_THREAD_TIMEOUT = 60
 ORKA_MAX_THREADS = 4
-```
 
-## layers.yml
-
-Additionally a yaml file must be added that contains the specification for the
-data to retrieve from the database. The name of the file must be specified in `config.py`.
-
-The yaml file must provide following structure:
-
-```yaml
-- layername: '' # name of the table/layer
-  schema: '' # schema of the table'
-  geom_column: '' # name of the column that contains the geometries'. This will always be included in the dataset.
-  columns: # list of additional columns that should be included in the gpkg
-    - '' # name of column
-```
-
-Example layers.yml:
-
-```yaml
-- layername: 'osm_aeroways'
-  schema: 'public'
-  geom_column: 'geometry'
-  columns:
-    - 'type'
-- layername: 'osm_waterareas'
-  schema: 'public'
-  geom_column: 'geometry'
-  columns:
-    - 'type'
-    - 'name'
+ORKA_LOG_FILE = '/var/log/orka/orka.log'
+ORKA_STYLE_PATH = 'styles/'
+ORKA_STYLE_FILE = 'style.zip'
+ORKA_MAX_BBOX = 10000
 ```
