@@ -164,7 +164,7 @@ def bbox_size_allowed(conn, app, bbox):
     maxy = float(bbox[3])
 
     max_area = app.config['ORKA_MAX_BBOX']
-    q = 'SELECT ST_AREA(st_transform(l.geom, 3857))/1000000 from (select \'SRID=4326;POLYGON((%(minx)s %(miny)s,%(maxx)s %(miny)s, %(maxx)s %(maxy)s,%(minx)s %(maxy)s,%(minx)s %(miny)s))\' :: geometry geom) as l;'
+    q = 'SELECT ST_AREA(st_transform(geom, 3857))/1000000 from ST_MakeEnvelope(%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, 4326) as geom;'
     with conn.cursor() as cur:
         cur.execute(q, {
             'minx': minx,

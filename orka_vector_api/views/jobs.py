@@ -15,7 +15,6 @@ def add_job():
     if request.content_type == 'application/json':
         post_body = request.json
 
-        # TODO check bbox area size
         # bbox is always in 4326
         bbox = post_body.get('bbox')
         if bbox is None or not len(bbox) == 4:

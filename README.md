@@ -49,7 +49,7 @@ that allows following additional configs:
 - `ORKA_DB_MIN_CONNECTION` = application database min connections
 - `ORKA_DB_MAX_CONNECTION` = application database max connections
 - `ORKA_GPKG_PATH` = path to where the created gpkg files should be placed
-- `ORKA_LAYERS_PATH` = path to folder containing the layer sqls. This file must be located within the instance folder 
+- `ORKA_LAYERS_PATH` = path to folder containing the layer sqls. This folder must be located within the instance folder
 - `ORKA_THREAD_TIMEOUT` = timeout in seconds after which a running thread should be killed.
 - `ORKA_MAX_THREADS` = number of allowed threads
 - `ORKA_LOG_FILE` = path to log file

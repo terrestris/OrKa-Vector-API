@@ -11,8 +11,14 @@ db = OrkaDB()
 
 
 def create_app(test_config=None):
+    app_kwargs = {
+        'instance_relative_config': True
+    }
+    if os.environ.get('FLASK_ENV', '') != 'development':
+        app_kwargs['instance_path'] = f'/var/{__name__}'
+
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, **app_kwargs)
     app.config.from_mapping(
         SECRET_KEY='dev'
     )

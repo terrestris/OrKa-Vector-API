@@ -30,10 +30,10 @@ def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpk
         print(gpkg_sql_escaped)
         cmd = _get_gpkg_cmd(file_name, layer_name, gpkg_sql_escaped, **db_props)
         proc = subprocess.run(cmd, shell=True, capture_output=True)
-        if proc.stderr:
-            if error_e is not None:
-                error_e.set()
-            break
+        # if proc.stderr:
+        #     if error_e is not None:
+        #         error_e.set()
+        #     break
             # raise Exception(f'Error creating {file_name}: ' + proc.stderr.decode())
         if proc.returncode != 0:
             if error_e is not None:
