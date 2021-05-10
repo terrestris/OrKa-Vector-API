@@ -24,6 +24,10 @@ POSTGIS extension needs to be installed on orka db.
 create extension postgis;
 ```
 
+## installation
+
+create user writeable folders `/var/log/orka` and `/var/orka`
+
 # build
 
 see https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/

@@ -11,6 +11,7 @@ setup(
         'psycopg2-binary',
         'PyYAML',
         'uuid',
-        'requests'
+        'requests',
+        'flasgger'
     ],
 )

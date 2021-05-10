@@ -4,7 +4,6 @@ create table if not exists jobs (
 	miny double precision not null,
 	maxx double precision not null,
 	maxy double precision not null,
-	transform_to varchar(40),
 	data_id varchar,
 	status varchar(10)
 );

@@ -1,13 +1,17 @@
 import os
 
+from flasgger import Swagger
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from orka_vector_api import logging_config
 from orka_vector_api.logging_config import setup_file_logger
 from orka_vector_api.orka_db import OrkaDB
+from orka_vector_api.swagger_config import get_swagger_config
 
 db = OrkaDB()
+# swagger = Swagger()
+swagger = Swagger(template=get_swagger_config())
 
 
 def create_app(test_config=None):
@@ -40,6 +44,7 @@ def create_app(test_config=None):
     app.logger.addHandler(file_logger)
 
     db.init_app(app)
+    swagger.init_app(app)
 
     from orka_vector_api.views.status import status
     from orka_vector_api.views.jobs import jobs

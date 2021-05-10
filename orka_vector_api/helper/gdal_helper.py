@@ -14,6 +14,7 @@ def _get_gpkg_cmd(filename, layername, sql, host=None, port=None, database=None,
           f'PG:"host={host} user={user} port={port} dbname={database} password={password}" ' \
           f'-sql "{sql}" ' \
           f'-nln "{layername}" ' \
+          f'-t_srs EPSG:25833 ' \
           f'-append'
 
     return cmd
@@ -36,6 +37,7 @@ def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpk
         #     break
             # raise Exception(f'Error creating {file_name}: ' + proc.stderr.decode())
         if proc.returncode != 0:
+            print(proc.stderr.decode())
             if error_e is not None:
                 error_e.set()
             break
@@ -69,7 +71,7 @@ def _get_gpkg_sql(layer_sql, bbox):
     # see https://www.postgresql.org/docs/9.1/functions-array.htm
     return (f'SELECT * FROM ({layer_sql}) AS l '
             f'WHERE l.geometry '
-            f'&& ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ST_SRID(l.geometry));')
+            f'&& ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ST_SRID(l.geometry))')
 
 
 def create_gpkg_threaded(app, base_url, job_id, *args):

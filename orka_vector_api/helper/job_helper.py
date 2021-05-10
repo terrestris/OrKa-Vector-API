@@ -6,7 +6,7 @@ from psycopg2.sql import SQL, Identifier, Composed, Placeholder
 from orka_vector_api.enums import Status
 
 
-def create_job(conn, app, bbox, data_id, transform_to=None):
+def create_job(conn, app, bbox, data_id):
     schema = app.config['ORKA_DB_SCHEMA']
     if not _is_sane_schema(schema):
         raise Exception('Schema is not sane.')
@@ -16,7 +16,6 @@ def create_job(conn, app, bbox, data_id, transform_to=None):
         'miny': float(bbox[1]),
         'maxx': float(bbox[2]),
         'maxy': float(bbox[3]),
-        'transform_to': transform_to,
         'status': Status.INIT.value,
         'data_id': data_id
     }
@@ -24,8 +23,8 @@ def create_job(conn, app, bbox, data_id, transform_to=None):
     if False in [_is_sane(k, v) for k, v in props.items()]:
         raise Exception('Properties are not sane.')
 
-    q = SQL('INSERT INTO {}.{} (minx, miny, maxx, maxy, transform_to, status, data_id) '
-            'VALUES (%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, %(transform_to)s, %(status)s, %(data_id)s) '
+    q = SQL('INSERT INTO {}.{} (minx, miny, maxx, maxy, status, data_id) '
+            'VALUES (%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, %(status)s, %(data_id)s) '
             'RETURNING id;').format(Identifier(schema), Identifier('jobs'))
 
     with conn.cursor() as cur:
@@ -41,10 +40,10 @@ def update_job(job_id, conn, app, **kwargs):
     if not _is_sane_schema(schema):
         raise Exception('Schema is not sane.')
 
-    if False in [_is_sane(k, v) for k, v in kwargs.items()]:
+    if False in [_is_sane(k, v) for k, v in kwargs.items() if k != 'id']:
         raise Exception("Attributes are not sane.")
 
-    vals = [Composed([Identifier(k), SQL('='), Placeholder(k)]) for k in kwargs.keys()]
+    vals = [Composed([Identifier(k), SQL('='), Placeholder(k)]) for k in kwargs.keys() if k != 'id']
     q = SQL('UPDATE {schema}.{table} SET {data} WHERE id = %(job_id)s;').format(
         schema=Identifier(schema),
         table=Identifier('jobs'),
@@ -69,7 +68,7 @@ def get_job_by_id(job_id, conn, app):
     if not _is_sane_schema(schema):
         raise Exception('Schema is not sane.')
 
-    cols = ['id', 'minx', 'miny', 'maxx', 'maxy', 'data_id', 'transform_to', 'status']
+    cols = ['id', 'minx', 'miny', 'maxx', 'maxy', 'data_id', 'status']
     q = SQL('SELECT {cols} '
             'FROM {schema}.{table} '
             'WHERE id = %(job_id)s;').format(
@@ -182,7 +181,6 @@ def _is_sane(key, val):
         'miny': float,
         'maxx': float,
         'maxy': float,
-        'transform_to': str,
         'status': str,
         'data_id': str
     }
