@@ -66,7 +66,7 @@ def add_job():
     bbox = post_body.get('bbox')
     if bbox is None or not len(bbox) == 4:
         current_app.logger.info('Could not add job. Invalid BBOX.')
-        return json.dumps({'success': False, 'message': 'Invalid BBOX.'}), 400, {'ContentType': 'application/json'}
+        return json.dumps({'success': False, 'message': Status.BBOX_INVALID.value}), 400, {'ContentType': 'application/json'}
 
     conn = db.pool.getconn()
     try:
@@ -74,23 +74,19 @@ def add_job():
 
         if not bbox_size_allowed(conn, current_app, bbox):
             current_app.logger.info('Could not add job. BBOX size not allowed.')
-            raise OrkaException('BBOX too big.')
+            raise OrkaException(Status.BBOX_TOO_BIG.value)
 
         if not threads_available(conn, current_app):
             current_app.logger.info('Could not add job. No free threads available.')
-            raise OrkaException('Server busy.')
+            raise OrkaException(Status.NO_THREADS_AVAILABLE.value)
 
-        try:
-            job_id = create_job(conn, current_app, bbox, data_id)
-            current_app.logger.debug(f'Added job with id {job_id}')
-            update_job(job_id, conn, current_app, status=Status.RUNNING.value)
+        job_id = create_job(conn, current_app, bbox, data_id)
+        current_app.logger.debug(f'Added job with id {job_id}')
+        update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
-            current_app.logger.debug(f'Creating gpkg for job {job_id}')
-            create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
-            response = json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
-        except Exception as e:
-            current_app.logger.info(f'Could not add job. {e}')
-            raise OrkaException('Error creating job.')
+        current_app.logger.debug(f'Creating gpkg for job {job_id}')
+        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
+        response = json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
     except OrkaException as e:
         response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
     except Exception as e:
@@ -150,6 +146,9 @@ def get_job(job_id):
           - CREATED
           - ERROR
           - TIMEOUT
+          - BBOX_TOO_BIG
+          - BBOX_INVALID
+          - NO_THREADS_AVAILABLE
     """
     conn = db.pool.getconn()
     try:
