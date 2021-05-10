@@ -7,11 +7,11 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'flask',
-        'psycopg2-binary',
-        'PyYAML',
-        'uuid',
-        'requests',
-        'flasgger'
+        'flask~=1.1.2',
+        'psycopg2-binary~=2.8.6',
+        'PyYAML~=5.4.1',
+        'uuid~=1.30',
+        'requests~=2.25.1',
+        'flasgger~=0.9.5'
     ],
 )
