@@ -10,7 +10,6 @@ from orka_vector_api.orka_db import OrkaDB
 from orka_vector_api.swagger_config import get_swagger_config
 
 db = OrkaDB()
-# swagger = Swagger()
 swagger = Swagger(template=get_swagger_config())
 
 
