@@ -148,12 +148,12 @@ def get_job(job_id):
     conn = db.pool.getconn()
     try:
         job = get_job_by_id(job_id, conn, current_app)
-        db.pool.putconn(conn)
         if job is None:
             current_app.logger.info(f'Could not get job {job_id}. Job not found.')
             raise Exception("Job not found.")
         if job['status'] != Status.CREATED.value:
             job.pop('data_id')
+        db.pool.putconn(conn)
     except Exception as e:
         db.pool.putconn(conn)
         current_app.logger.info(f'Could not get job {job_id}. Error: ' + str(e))
@@ -251,12 +251,12 @@ def delete_job(job_id):
             current_app.logger.info(f'Could not delete gpkg for job {job_id}')
 
         deleted = delete_job_by_id(job_id, conn, current_app)
-        db.pool.putconn(conn)
         if not deleted:
             current_app.logger.info(f'Could not delete job with id {job_id}')
             raise Exception('Could not delete job.')
 
         current_app.logger.debug(f'Deleted job with id {job_id}')
+        db.pool.putconn(conn)
     except Exception as e:
         db.pool.putconn(conn)
         return json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
