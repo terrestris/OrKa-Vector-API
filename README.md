@@ -1,36 +1,22 @@
 # OrKa-Vector-API
 The OrKa Vector REST API
 
-# Commands
+# Install
 
-## run dev server
+Requires a postgres database with postgis extension installed.
 
-start application
+```shell
+pip install orka-vector-api
+```
+
+# Development
+
+
+## Run Dev Server
+
 ```shell
 FLASK_APP=orka_vector_api FLASK_ENV=development flask run
 ```
-
-## run prod server from another venv (waitress)
-
-```shell
-waitress-serve --call 'orka_vector_api:create_app'
-```
-
-## DB
-
-POSTGIS extension needs to be installed on orka db.
-
-```
-create extension postgis;
-```
-
-## installation
-
-create user writeable folders `/var/log/orka_vector_api/` and `/var/orka_vector_api/`
-
-# build
-
-see https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
 
 # Configs
 
