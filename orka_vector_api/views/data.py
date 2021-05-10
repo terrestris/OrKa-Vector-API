@@ -10,6 +10,22 @@ data = Blueprint('data', __name__, url_prefix='/data')
 
 @data.route('/<uuid:data_id>', methods=['GET'])
 def get_data(data_id):
+    """Get a single geopackage.
+    Get the geopackage with given uuid as filename.
+    ---
+    parameters:
+      - name: data_id
+        description: The id of the geopackage to download. The id is provided via the corresponding job.
+        in: path
+        type: string
+        format: uuid
+        required: true
+    responses:
+      200:
+        description: The geopackage file.
+    produces:
+      - application/geopackage+sqlite3
+    """
     data_id_str = str(data_id)
     gpkg_path = current_app.config['ORKA_GPKG_PATH']
     filename = data_id_str + '.gpkg'
@@ -30,6 +46,15 @@ def get_data(data_id):
 
 @data.route('/styles', methods=['GET'])
 def get_styles_zip():
+    """Get the style files, symbols, etc.
+    Get all style files as a single .zip file.
+    ---
+    responses:
+      200:
+        description: The .zip file containing all styles, etc.
+    produces:
+      - application/zip
+    """
     style_path = current_app.config['ORKA_STYLE_PATH']
     file_name = current_app.config['ORKA_STYLE_FILE']
 

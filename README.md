@@ -24,6 +24,10 @@ POSTGIS extension needs to be installed on orka db.
 create extension postgis;
 ```
 
+## installation
+
+create user writeable folders `/var/log/orka_vector_api/` and `/var/orka_vector_api/`
+
 # build
 
 see https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
@@ -80,7 +84,7 @@ ORKA_LAYERS_PATH = 'layers/'
 ORKA_THREAD_TIMEOUT = 60
 ORKA_MAX_THREADS = 4
 
-ORKA_LOG_FILE = '/var/log/orka/orka.log'
+ORKA_LOG_FILE = '/var/log/orka_vector_api/orka_vector_api.log'
 ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
 ORKA_MAX_BBOX = 10000

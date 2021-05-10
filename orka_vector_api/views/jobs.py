@@ -12,79 +12,253 @@ jobs = Blueprint('jobs', __name__, url_prefix='/jobs')
 
 @jobs.route('/', methods=['POST'])
 def add_job():
-    if request.content_type == 'application/json':
-        post_body = request.json
+    """Add new job.
+    Add a new job and trigger the creation of a geopackage containing only
+    the geometries that intersect the provided bounding box.
+    ---
+    parameters:
+      - name: body
+        in: body
+        description: The bounding box
+        schema:
+          $ref: '#/definitions/PostBody'
+        required: true
+    responses:
+      400:
+        description: BBOX invalid, or BBOX area too big, or server busy.
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            message:
+              type: string
+          example: {"success": false, "message": "Invalid BBOX"}
+      201:
+        description: The success response.
+        schema:
+          $ref: '#/definitions/PostResponse'
+    definitions:
+      PostResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: True, if the job was successfully created. False otherwise.
+          job_id:
+            type: integer
+            description: The id of the created job.
+        example: {"success": True, "job_id": 1}
+      PostBody:
+        type: object
+        properties:
+          bbox:
+            type: array
+            description: The Bounding Box in EPSG 4326 with [xMin, yMin, xMax, yMax].
+            items:
+              type: number
+        example: {"bbox": [12.770159825707431, 53.38672734467538, 12.81314093379179, 53.40407138102892]}
+    """
+    post_body = request.json
 
-        # bbox is always in 4326
-        bbox = post_body.get('bbox')
-        if bbox is None or not len(bbox) == 4:
-            current_app.logger.info('Could not add job. Invalid BBOX.')
-            abort(400)
+    # bbox is always in 4326
+    bbox = post_body.get('bbox')
+    if bbox is None or not len(bbox) == 4:
+        current_app.logger.info('Could not add job. Invalid BBOX.')
+        return json.dumps({'success': False, 'message': 'Invalid BBOX.'}), 400, {'ContentType': 'application/json'}
 
-        transform_to = post_body.get('transform_to')
-
-        conn = db.pool.getconn()
+    conn = db.pool.getconn()
+    try:
         data_id = str(uuid.uuid4())
 
         if not bbox_size_allowed(conn, current_app, bbox):
             current_app.logger.info('Could not add job. BBOX size not allowed.')
-            abort(400)
+            raise Exception('BBOX too big.')
 
         if not threads_available(conn, current_app):
             current_app.logger.info('Could not add job. No free threads available.')
-            return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+            raise Exception('Server busy.')
 
-        job_id = create_job(conn, current_app, bbox, data_id, transform_to=transform_to)
-        current_app.logger.debug(f'Added job with id {job_id}')
-        update_job(job_id, conn, current_app, status=Status.RUNNING.value)
+        try:
+            job_id = create_job(conn, current_app, bbox, data_id)
+            current_app.logger.debug(f'Added job with id {job_id}')
+            update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
-        current_app.logger.debug(f'Creating gpkg for job {job_id}')
-        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
-
+            current_app.logger.debug(f'Creating gpkg for job {job_id}')
+            create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
+            db.pool.putconn(conn)
+        except Exception as e:
+            current_app.logger.info('Could not add job. ' + str(e))
+            raise Exception('Error creating job.')
+    except Exception as e:
         db.pool.putconn(conn)
-        return json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
-    else:
-        abort(400)
+        return json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
+    return json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
 
 
 @jobs.route('/<int:job_id>', methods=['GET'])
 def get_job(job_id):
+    """Get the job.
+    ---
+    parameters:
+      - name: job_id
+        in: path
+        description: The id of the job.
+        type: integer
+        required: true
+    responses:
+      200:
+        description: The requested job.
+        schema:
+          $ref: '#/definitions/Job'
+      404:
+        description: Job not found.
+    definitions:
+      Job:
+        description: The Job object.
+        type: object
+        properties:
+          id:
+            type: integer
+            description: The id of the job
+          minx:
+            type: number
+            description: The minX value of the provided Bounding Box.
+          miny:
+            type: number
+            description: The minY value of the provided Bounding Box.
+          maxx:
+            type: number
+            description: The maxX value of the provided Bounding Box.
+          maxy:
+            type: number
+            description: The maxY value of the provided Bounding Box.
+          status:
+            $ref: '#/definitions/JobStatus'
+      JobStatus:
+        description: The status of a Job.
+        type: string
+        enum:
+          - INIT
+          - RUNNING
+          - CREATED
+          - ERROR
+          - TIMEOUT
+    """
     conn = db.pool.getconn()
-    job = get_job_by_id(job_id, conn, current_app)
-    db.pool.putconn(conn)
-    if job.get('status') != Status.CREATED.value:
-        job.pop('data_id')
-
+    try:
+        job = get_job_by_id(job_id, conn, current_app)
+        if job is None:
+            current_app.logger.info(f'Could not get job {job_id}. Job not found.')
+            raise Exception("Job not found.")
+        if job['status'] != Status.CREATED.value:
+            job.pop('data_id')
+        db.pool.putconn(conn)
+    except Exception as e:
+        db.pool.putconn(conn)
+        current_app.logger.info(f'Could not get job {job_id}. Error: ' + str(e))
+        return abort(404)
     return job
 
 
 @jobs.route('/<int:job_id>', methods=['PUT'])
 def put_job(job_id):
+    """Update a job.
+    ---
+    parameters:
+      - name: job_id
+        in: path
+        description: The id of the job.
+        type: integer
+        required: true
+      - name: body
+        in: body
+        description: The changed job.
+        required: true
+        schema:
+          $ref: '#/definitions/Job'
+    responses:
+      201:
+        description: Successfully updated.
+        schema:
+          $ref: '#/definitions/PutResponse'
+      404:
+        description: Job not found.
+    definitions:
+      PutResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: The success state of the request.
+    """
     post_body = request.json
     conn = db.pool.getconn()
-    update_job(job_id, conn, current_app, **post_body)
-    db.pool.putconn(conn)
+    try:
+        job = get_job_by_id(job_id, conn, current_app)
+        if job is None:
+            current_app.logger.info(f'Could not update job {job_id}. Job not found.')
+            raise Exception("Job not found.")
+        update_job(job_id, conn, current_app, **post_body)
+        db.pool.putconn(conn)
+    except Exception:
+        db.pool.putconn(conn)
+        return abort(404)
     return json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
 
 
 @jobs.route('/<int:job_id>', methods=['DELETE'])
 def delete_job(job_id):
+    """Delete a job.
+    Deletes a job and the corresponding geopackage file.
+    ---
+    parameters:
+      - name: job_id
+        in: path
+        description: The id of the job.
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Successfully deleted.
+        schema:
+          $ref: '#/definitions/DeleteResponse'
+      404:
+        description: Job not found.
+        schema:
+          $ref: '#/definitions/DeleteResponse'
+      400:
+        description: Job could not be deleted.
+        schema:
+          $ref: '#/definitions/DeleteResponse'
+    definitions:
+      DeleteResponse:
+        type: object
+        properties:
+          success:
+            type: boolean
+            description: True, if deleted successfully. False otherwise.
+    """
     conn = db.pool.getconn()
-    job = get_job_by_id(job_id, conn, current_app)
-    if job is None:
-        current_app.logger.info(f'Could not delete job {job_id}. Job not found.')
-        abort(400)
+    try:
+        job = get_job_by_id(job_id, conn, current_app)
+        if job is None:
+            current_app.logger.info(f'Could not delete job {job_id}. Job not found.')
+            raise Exception("Job not found")
 
-    deleted_gpkg = delete_geopackage(job.get('data_id'), conn, current_app)
-    if not deleted_gpkg:
-        current_app.logger.info(f'Could not delete gpkg for job {job_id}')
+        deleted_gpkg = delete_geopackage(job.get('data_id'), conn, current_app)
+        if not deleted_gpkg:
+            current_app.logger.info(f'Could not delete gpkg for job {job_id}')
 
-    deleted = delete_job_by_id(job_id, conn, current_app)
-    db.pool.putconn(conn)
-    if not deleted:
-        current_app.logger.info(f'Could not delete job with id {job_id}')
-        return json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+        deleted = delete_job_by_id(job_id, conn, current_app)
+        if not deleted:
+            current_app.logger.info(f'Could not delete job with id {job_id}')
+            raise Exception('Could not delete job.')
 
-    current_app.logger.debug(f'Deleted job with id {job_id}')
+        current_app.logger.debug(f'Deleted job with id {job_id}')
+        db.pool.putconn(conn)
+    except Exception as e:
+        db.pool.putconn(conn)
+        return json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
 
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
