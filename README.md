@@ -75,3 +75,18 @@ ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
 ORKA_MAX_BBOX = 10000
 ```
+
+# Publishing
+
+- update version number in setup.py and orka_vector_api/__init__.py
+- run following commands:
+
+```shell
+python3 -m venv venv_publish
+source venv_publish/bin/activate
+pip install -r requirements_publish.txt
+python setup.py sdist bdist_wheel
+# make sure following command prints 'passed' on all files in dist/
+twine check dist/*
+twine upload dist/*
+```
