@@ -208,7 +208,6 @@ def put_job(job_id):
             current_app.logger.info(f'Could not update job {job_id}. Job not found.')
             raise OrkaException("Job not found.")
         update_job(job_id, conn, current_app, **post_body)
-        db.pool.putconn(conn)
         response = json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
     except OrkaException:
         response = json.dumps({'success': False}), 404, {'ContentType': 'application/json'}

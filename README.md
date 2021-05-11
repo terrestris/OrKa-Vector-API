@@ -45,7 +45,8 @@ that allows following additional configs:
 - `ORKA_LOG_FILE` = path to log file
 - `ORKA_STYLE_PATH` = path to the file that contains all styles, etc.
 - `ORKA_STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
-- `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm.
+- `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm. 
+- `ORKA_LOG_LEVEL` = log level
 
 Example config.py:
 
@@ -71,9 +72,11 @@ ORKA_THREAD_TIMEOUT = 60
 ORKA_MAX_THREADS = 4
 
 ORKA_LOG_FILE = '/var/log/orka_vector_api/orka_vector_api.log'
+ORKA_LOG_LEVEL = 'WARNING'
+
 ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
-ORKA_MAX_BBOX = 10000
+ORKA_MAX_BBOX = 23211
 ```
 
 # Publishing
