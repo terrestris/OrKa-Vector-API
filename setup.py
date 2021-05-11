@@ -6,7 +6,7 @@ README = (pathlib.Path(__file__).parent / 'README.md').read_text()
 
 setup(
     name='orka_vector_api',
-    version='0.0.1',
+    version='0.0.2',
     description='Rest API for orka vector data',
     long_description=README,
     long_description_content_type='text/markdown',
