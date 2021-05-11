@@ -4,6 +4,7 @@ from flask import Blueprint, request, abort, current_app
 
 from orka_vector_api import db
 from orka_vector_api.enums import Status
+from orka_vector_api.exceptions.orka import OrkaException
 from orka_vector_api.helper import create_job, update_job, get_job_by_id, delete_job_by_id, \
     delete_geopackage, create_gpkg_threaded, threads_available, bbox_size_allowed
 
@@ -65,7 +66,7 @@ def add_job():
     bbox = post_body.get('bbox')
     if bbox is None or not len(bbox) == 4:
         current_app.logger.info('Could not add job. Invalid BBOX.')
-        return json.dumps({'success': False, 'message': 'Invalid BBOX.'}), 400, {'ContentType': 'application/json'}
+        return json.dumps({'success': False, 'message': Status.BBOX_INVALID.value}), 400, {'ContentType': 'application/json'}
 
     conn = db.pool.getconn()
     try:
@@ -73,27 +74,28 @@ def add_job():
 
         if not bbox_size_allowed(conn, current_app, bbox):
             current_app.logger.info('Could not add job. BBOX size not allowed.')
-            raise Exception('BBOX too big.')
+            raise OrkaException(Status.BBOX_TOO_BIG.value)
 
         if not threads_available(conn, current_app):
             current_app.logger.info('Could not add job. No free threads available.')
-            raise Exception('Server busy.')
+            raise OrkaException(Status.NO_THREADS_AVAILABLE.value)
 
-        try:
-            job_id = create_job(conn, current_app, bbox, data_id)
-            current_app.logger.debug(f'Added job with id {job_id}')
-            update_job(job_id, conn, current_app, status=Status.RUNNING.value)
+        job_id = create_job(conn, current_app, bbox, data_id)
+        current_app.logger.debug(f'Added job with id {job_id}')
+        update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
-            current_app.logger.debug(f'Creating gpkg for job {job_id}')
-            create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
-            db.pool.putconn(conn)
-        except Exception as e:
-            current_app.logger.info('Could not add job. ' + str(e))
-            raise Exception('Error creating job.')
+        current_app.logger.debug(f'Creating gpkg for job {job_id}')
+        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
+        response = json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
+    except OrkaException as e:
+        response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
     except Exception as e:
+        current_app.logger.info(f'Error adding job. {e}')
+        response = json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+    finally:
         db.pool.putconn(conn)
-        return json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
-    return json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
+
+    return response
 
 
 @jobs.route('/<int:job_id>', methods=['GET'])
@@ -144,21 +146,27 @@ def get_job(job_id):
           - CREATED
           - ERROR
           - TIMEOUT
+          - BBOX_TOO_BIG
+          - BBOX_INVALID
+          - NO_THREADS_AVAILABLE
     """
     conn = db.pool.getconn()
     try:
         job = get_job_by_id(job_id, conn, current_app)
         if job is None:
             current_app.logger.info(f'Could not get job {job_id}. Job not found.')
-            raise Exception("Job not found.")
+            raise OrkaException("Job not found.")
         if job['status'] != Status.CREATED.value:
             job.pop('data_id')
-        db.pool.putconn(conn)
+        response = job
+    except OrkaException as e:
+        response = '', 404
     except Exception as e:
+        current_app.logger.info(f'Error getting job. {e}')
+        response = '', 500
+    finally:
         db.pool.putconn(conn)
-        current_app.logger.info(f'Could not get job {job_id}. Error: ' + str(e))
-        return abort(404)
-    return job
+    return response
 
 
 @jobs.route('/<int:job_id>', methods=['PUT'])
@@ -198,13 +206,19 @@ def put_job(job_id):
         job = get_job_by_id(job_id, conn, current_app)
         if job is None:
             current_app.logger.info(f'Could not update job {job_id}. Job not found.')
-            raise Exception("Job not found.")
+            raise OrkaException("Job not found.")
         update_job(job_id, conn, current_app, **post_body)
         db.pool.putconn(conn)
-    except Exception:
+        response = json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
+    except OrkaException:
+        response = json.dumps({'success': False}), 404, {'ContentType': 'application/json'}
+    except Exception as e:
+        current_app.logger.info(f'Error updating job. {e}')
+        response = json.dumps({'success': False}), 500, {'ContentType': 'application/json'}
+    finally:
         db.pool.putconn(conn)
-        return abort(404)
-    return json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
+
+    return response
 
 
 @jobs.route('/<int:job_id>', methods=['DELETE'])
@@ -244,7 +258,7 @@ def delete_job(job_id):
         job = get_job_by_id(job_id, conn, current_app)
         if job is None:
             current_app.logger.info(f'Could not delete job {job_id}. Job not found.')
-            raise Exception("Job not found")
+            raise OrkaException("Job not found")
 
         deleted_gpkg = delete_geopackage(job.get('data_id'), conn, current_app)
         if not deleted_gpkg:
@@ -253,12 +267,16 @@ def delete_job(job_id):
         deleted = delete_job_by_id(job_id, conn, current_app)
         if not deleted:
             current_app.logger.info(f'Could not delete job with id {job_id}')
-            raise Exception('Could not delete job.')
+            raise OrkaException('Could not delete job.')
 
         current_app.logger.debug(f'Deleted job with id {job_id}')
-        db.pool.putconn(conn)
+        response = json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+    except OrkaException as e:
+        response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
     except Exception as e:
+        current_app.logger.info(f'Error deleting job {e}')
+        response = json.dumps({'success': False}), 500, {'ContentType': 'application/json'}
+    finally:
         db.pool.putconn(conn)
-        return json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
 
-    return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+    return response

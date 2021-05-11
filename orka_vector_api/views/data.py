@@ -3,6 +3,7 @@ import os.path
 from flask import Blueprint, current_app, abort, send_from_directory
 
 from orka_vector_api import db
+from orka_vector_api.exceptions.orka import OrkaException
 from orka_vector_api.helper import get_job_id_by_dataid
 
 data = Blueprint('data', __name__, url_prefix='/data')
@@ -31,17 +32,23 @@ def get_data(data_id):
     filename = data_id_str + '.gpkg'
 
     conn = db.pool.getconn()
-
-    # only return a file if it is related to an existing job
-    job_id = get_job_id_by_dataid(data_id_str, conn, current_app)
-    if job_id is None:
+    try:
+        # only return a file if it is related to an existing job
+        job_id = get_job_id_by_dataid(data_id_str, conn, current_app)
+        if job_id is None:
+            raise OrkaException('Corresponding job not found.')
+        current_app.logger.debug(f'Provided download for {filename} of job {job_id}.')
+        response = send_from_directory(os.path.abspath(gpkg_path), filename, mimetype='application/geopackage+sqlite3')
+    except OrkaException as e:
         current_app.logger.info(f'Could not provide download for {filename}. No corresponding job found.')
-        abort(404)
+        response = '', 404
+    except Exception as e:
+        current_app.logger.info(f'Error downloading gpkg. {e}')
+        response = '', 404
+    finally:
+        db.pool.putconn(conn)
 
-    db.pool.putconn(conn)
-
-    current_app.logger.debug(f'Provided download for {filename} of job {job_id}.')
-    return send_from_directory(os.path.abspath(gpkg_path), filename,  mimetype='application/geopackage+sqlite3')
+    return response
 
 
 @data.route('/styles', methods=['GET'])

@@ -1,0 +1,3 @@
+
+class OrkaException(Exception):
+    pass
