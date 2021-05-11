@@ -163,7 +163,7 @@ def get_job(job_id):
         response = '', 404
     except Exception as e:
         current_app.logger.info(f'Error getting job. {e}')
-        response = '', 404
+        response = '', 500
     finally:
         db.pool.putconn(conn)
     return response
@@ -211,10 +211,10 @@ def put_job(job_id):
         db.pool.putconn(conn)
         response = json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
     except OrkaException:
-        response = json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+        response = json.dumps({'success': False}), 404, {'ContentType': 'application/json'}
     except Exception as e:
         current_app.logger.info(f'Error updating job. {e}')
-        response = json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+        response = json.dumps({'success': False}), 500, {'ContentType': 'application/json'}
     finally:
         db.pool.putconn(conn)
 
@@ -275,7 +275,7 @@ def delete_job(job_id):
         response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
     except Exception as e:
         current_app.logger.info(f'Error deleting job {e}')
-        response = json.dumps({'success': False}), 400, {'ContentType': 'application/json'}
+        response = json.dumps({'success': False}), 500, {'ContentType': 'application/json'}
     finally:
         db.pool.putconn(conn)
 
