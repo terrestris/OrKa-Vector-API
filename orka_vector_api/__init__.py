@@ -41,8 +41,9 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    file_logger = setup_file_logger(logfile=app.config['ORKA_LOG_FILE'], loglevel=app.config['ORKA_LOG_LEVEL'])
+    file_logger = setup_file_logger(logfile=app.config['ORKA_LOG_FILE'])
     app.logger.addHandler(file_logger)
+    app.logger.setLevel(app.config['ORKA_LOG_LEVEL'])
 
     db.init_app(app)
     swagger.init_app(app)
