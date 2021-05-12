@@ -10,3 +10,9 @@ services:
         volumes:
             - ./postgis/postgresql_init_data:/docker-entrypoint-initdb.d
             - ./postgis/postgresql_data:/var/lib/postgresql/data:Z
+    orka-apache:
+        image: httpd:2.4.23
+        ports:
+            - 8080:80
+        volumes:
+            - ./httpd.conf:/usr/local/apache2/conf/httpd.conf
