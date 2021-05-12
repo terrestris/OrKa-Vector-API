@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 from os import listdir
@@ -6,6 +7,7 @@ from threading import Event, Thread
 
 from requests import put
 
+from orka_vector_api import setup_file_logger
 from orka_vector_api.enums import Status
 
 
@@ -20,7 +22,12 @@ def _get_gpkg_cmd(filename, layername, sql, host=None, port=None, database=None,
     return cmd
 
 
-def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpkg_path='', layers_path=''):
+def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpkg_path='', layers_path='',
+                 logfile='orka.log', loglevel='INFO'):
+    log_handler = setup_file_logger(logfile=logfile)
+    logger = logging.getLogger()
+    logger.addHandler(log_handler)
+    logger.setLevel(loglevel)
     file_name = os.path.abspath(os.path.join(gpkg_path, data_id + '.gpkg'))
     layer_sqls = _get_layer_sqls(layers_path)
     for layer_name, layer_sql in layer_sqls.items():
@@ -28,20 +35,15 @@ def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpk
             break
         gpkg_sql = _get_gpkg_sql(layer_sql, bbox)
         gpkg_sql_escaped = _escape_sql(gpkg_sql)
-        print(gpkg_sql_escaped)
+        logger.debug(gpkg_sql_escaped)
         cmd = _get_gpkg_cmd(file_name, layer_name, gpkg_sql_escaped, **db_props)
-        proc = subprocess.run(cmd, shell=True, capture_output=True)
-        # if proc.stderr:
-        #     if error_e is not None:
-        #         error_e.set()
-        #     break
-            # raise Exception(f'Error creating {file_name}: ' + proc.stderr.decode())
-        if proc.returncode != 0:
-            print(proc.stderr.decode())
+        try:
+            subprocess.run(cmd, shell=True, check=True, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            logger.info(f'Error creating gpkg: {e.stderr.decode()}')
             if error_e is not None:
                 error_e.set()
             break
-            # raise Exception(f'Error creating {file_name}: Program exited with non-zero code.')
 
 
 def _escape_sql(sql):
@@ -85,6 +87,8 @@ def create_gpkg_threaded(app, base_url, job_id, *args):
     gpkg_path = app.config['ORKA_GPKG_PATH']
     layers_path = app.config['ORKA_LAYERS_PATH']
     timeout = app.config['ORKA_THREAD_TIMEOUT']
+    logfile = app.config['ORKA_LOG_FILE']
+    loglevel = app.config['ORKA_LOG_LEVEL']
 
     if not base_url.endswith('/'):
         base_url += '/'
@@ -98,28 +102,40 @@ def create_gpkg_threaded(app, base_url, job_id, *args):
                         'timeout': timeout,
                         'db_props': db_props,
                         'gpkg_path': gpkg_path,
-                        'layers_path': layers_abs_path
+                        'layers_path': layers_abs_path,
+                        'logfile': logfile,
+                        'loglevel': loglevel
                     })
     thread.start()
 
 
-def _create_gpkg_threaded(response_url, *args, timeout=None, **kwargs):
-    timeout_e = Event()
-    error_e = Event()
-    thread = Thread(target=_create_gpkg, args=args, kwargs={'timeout_e': timeout_e, 'error_e': error_e, **kwargs})
-    thread.start()
+def _create_gpkg_threaded(response_url, *args, timeout=None, logfile='orka.log', loglevel='INFO', **kwargs):
+    try:
+        timeout_e = Event()
+        error_e = Event()
+        thread = Thread(target=_create_gpkg, args=args,
+                        kwargs={'timeout_e': timeout_e, 'error_e': error_e, 'logfile': logfile, 'loglevel': loglevel,
+                                **kwargs})
+        thread.start()
 
-    killed = False
-    if timeout is not None:
-        thread.join(timeout)
-        if thread.is_alive():
-            killed = True
-        timeout_e.set()
-    thread.join()
+        killed = False
+        if timeout is not None:
+            thread.join(timeout)
+            if thread.is_alive():
+                killed = True
+            timeout_e.set()
+        thread.join()
 
-    if error_e.isSet():
+        if error_e.isSet():
+            return put(response_url, json={'status': Status.ERROR.value})
+        if killed or error_e.isSet():
+            return put(response_url, json={'status': Status.TIMEOUT.value})
+        else:
+            return put(response_url, json={'status': Status.CREATED.value})
+    except Exception as e:
+        log_handler = setup_file_logger(logfile=logfile)
+        logger = logging.getLogger()
+        logger.addHandler(log_handler)
+        logger.setLevel(loglevel)
+        logger.info(f'Unexpected Error: {e}')
         return put(response_url, json={'status': Status.ERROR.value})
-    if killed or error_e.isSet():
-        return put(response_url, json={'status': Status.TIMEOUT.value})
-    else:
-        return put(response_url, json={'status': Status.CREATED.value})
