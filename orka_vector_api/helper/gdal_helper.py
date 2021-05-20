@@ -76,7 +76,7 @@ def _get_gpkg_sql(layer_sql, bbox):
             f'&& ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ST_SRID(l.geometry))')
 
 
-def create_gpkg_threaded(app, base_url, job_id, *args):
+def create_gpkg_threaded(app, job_id, *args):
     db_props = {
         'host': app.config['PG_HOST'],
         'port': app.config['PG_PORT'],
@@ -89,10 +89,9 @@ def create_gpkg_threaded(app, base_url, job_id, *args):
     timeout = app.config['ORKA_THREAD_TIMEOUT']
     logfile = app.config['ORKA_LOG_FILE']
     loglevel = app.config['ORKA_LOG_LEVEL']
+    app_port = app.config['ORKA_APP_PORT']
 
-    if not base_url.endswith('/'):
-        base_url += '/'
-    response_url = f'{base_url}{job_id}'
+    response_url = f'http://localhost:{app_port}/jobs/{job_id}'
 
     layers_abs_path = os.path.abspath(layers_path)
 
