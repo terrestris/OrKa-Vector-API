@@ -85,7 +85,7 @@ def add_job():
         update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
         current_app.logger.debug(f'Creating gpkg for job {job_id}')
-        create_gpkg_threaded(current_app, request.base_url, job_id, data_id, bbox)
+        create_gpkg_threaded(current_app, job_id, data_id, bbox)
         response = json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
     except OrkaException as e:
         response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}

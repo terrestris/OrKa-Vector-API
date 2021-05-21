@@ -47,6 +47,7 @@ that allows following additional configs:
 - `ORKA_STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
 - `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm. 
 - `ORKA_LOG_LEVEL` = log level
+- `ORKA_APP_PORT` = the port under which the app is running on
 
 Example config.py:
 
@@ -77,6 +78,8 @@ ORKA_LOG_LEVEL = 'WARNING'
 ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
 ORKA_MAX_BBOX = 23211
+
+ORKA_APP_PORT = 5000
 ```
 
 # Publishing
