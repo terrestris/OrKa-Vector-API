@@ -67,3 +67,20 @@ def get_styles_zip():
 
     current_app.logger.debug(f'Provided download for style file {file_name}.')
     return send_from_directory(os.path.abspath(style_path), file_name, mimetype='application/zip')
+
+
+@data.route('/groups', methods=['GET'])
+def get_layer_groups():
+    """Get the configuration of layer groups.
+    ---
+    responses:
+      200:
+        description: The layer group configuration json file.
+    produces:
+      - application/json
+    """
+    style_path = current_app.config['ORKA_STYLE_PATH']
+    file_name = current_app.config['ORKA_LAYER_GROUPS_FILE']
+
+    current_app.logger.debug(f'Provided download for layer groups config file {file_name}.')
+    return send_from_directory(os.path.abspath(style_path), file_name, mimetype='application/json')

@@ -45,6 +45,7 @@ that allows following additional configs:
 - `ORKA_LOG_FILE` = path to log file
 - `ORKA_STYLE_PATH` = path to the file that contains all styles, etc.
 - `ORKA_STYLE_FILE` = name of the zip file (including `.zip`) that contains all styles, etc.
+- `ORKA_LAYER_GROUPS_FILE` = name of the json file (including `.json`) that contains the configuration for layer groups.
 - `ORKA_MAX_BBOX` = maximum allowed size of the bbox in sqkm. 
 - `ORKA_LOG_LEVEL` = log level
 - `ORKA_APP_PORT` = the port under which the app is running on
@@ -77,6 +78,7 @@ ORKA_LOG_LEVEL = 'WARNING'
 
 ORKA_STYLE_PATH = 'styles/'
 ORKA_STYLE_FILE = 'style.zip'
+ORKA_LAYER_GROUPS_FILE = 'groups.json'
 ORKA_MAX_BBOX = 23211
 
 ORKA_APP_PORT = 5000

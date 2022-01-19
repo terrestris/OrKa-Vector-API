@@ -19,7 +19,7 @@ setup(
     zip_safe=False,
     install_requires=[
         'flask~=1.1.2',
-        'psycopg2-binary~=2.8.6',
+        'psycopg2~=2.8.6',
         'PyYAML~=5.4.1',
         'uuid~=1.30',
         'requests~=2.25.1',

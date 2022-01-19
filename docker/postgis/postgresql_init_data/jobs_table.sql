@@ -5,6 +5,7 @@ create table if not exists jobs (
 	maxx double precision not null,
 	maxy double precision not null,
 	data_id varchar,
-	status varchar(10)
+	status varchar(10),
+	layers varchar
 );
 
