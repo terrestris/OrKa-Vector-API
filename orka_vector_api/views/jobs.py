@@ -34,7 +34,9 @@ def add_job():
               type: boolean
             message:
               type: string
-          example: {"success": false, "message": "Invalid BBOX"}
+          example:
+            success: False
+            message: "Invalid BBOX"
       201:
         description: The success response.
         schema:
@@ -49,7 +51,9 @@ def add_job():
           job_id:
             type: integer
             description: The id of the created job.
-        example: {"success": True, "job_id": 1}
+        example:
+          success: True
+          job_id: 1
       PostBody:
         type: object
         properties:
@@ -58,7 +62,18 @@ def add_job():
             description: The Bounding Box in EPSG 4326 with [xMin, yMin, xMax, yMax].
             items:
               type: number
-        example: {"bbox": [12.770159825707431, 53.38672734467538, 12.81314093379179, 53.40407138102892]}
+          layers:
+            type: array
+            description: List of layers that should be included in the download. Will include all layers, if omitted.
+            items:
+              type: string
+            required: false
+        example:
+          bbox:
+            - 12.770159825707431
+            - 53.38672734467538
+            - 12.81314093379179
+            - 53.40407138102892
     """
     post_body = request.json
 
@@ -67,6 +82,11 @@ def add_job():
     if bbox is None or not len(bbox) == 4:
         current_app.logger.info('Could not add job. Invalid BBOX.')
         return json.dumps({'success': False, 'message': Status.BBOX_INVALID.value}), 400, {'ContentType': 'application/json'}
+
+    layers = post_body.get('layers')
+    if layers is not None and len(layers) == 0:
+        current_app.logger.info('Could not add job. Empty list of layers.')
+        return json.dumps({'success': False, 'message': Status.LAYERS_INVALID.value}), 400, {'ContentType': 'application/json'}
 
     conn = db.pool.getconn()
     try:
@@ -80,12 +100,12 @@ def add_job():
             current_app.logger.info('Could not add job. No free threads available.')
             raise OrkaException(Status.NO_THREADS_AVAILABLE.value)
 
-        job_id = create_job(conn, current_app, bbox, data_id)
+        job_id = create_job(conn, current_app, bbox, data_id, layers=layers)
         current_app.logger.debug(f'Added job with id {job_id}')
         update_job(job_id, conn, current_app, status=Status.RUNNING.value)
 
         current_app.logger.debug(f'Creating gpkg for job {job_id}')
-        create_gpkg_threaded(current_app, job_id, data_id, bbox)
+        create_gpkg_threaded(current_app, job_id, data_id, bbox, layers=layers)
         response = json.dumps({'success': True, 'job_id': job_id}), 201, {'ContentType': 'application/json'}
     except OrkaException as e:
         response = json.dumps({'success': False, 'message': str(e)}), 400, {'ContentType': 'application/json'}
@@ -137,6 +157,11 @@ def get_job(job_id):
             description: The maxY value of the provided Bounding Box.
           status:
             $ref: '#/definitions/JobStatus'
+          layers:
+            type: array
+            items:
+              type: str
+            description: The list of layers that are contained in the data package. If null, all layers are included.
       JobStatus:
         description: The status of a Job.
         type: string

@@ -6,7 +6,7 @@ from psycopg2.sql import SQL, Identifier, Composed, Placeholder
 from orka_vector_api.enums import Status
 
 
-def create_job(conn, app, bbox, data_id):
+def create_job(conn, app, bbox, data_id, layers=None):
     schema = app.config['ORKA_DB_SCHEMA']
     if not _is_sane_schema(schema):
         raise Exception('Schema is not sane.')
@@ -17,14 +17,18 @@ def create_job(conn, app, bbox, data_id):
         'maxx': float(bbox[2]),
         'maxy': float(bbox[3]),
         'status': Status.INIT.value,
-        'data_id': data_id
+        'data_id': data_id,
+        'layers': None
     }
+
+    if layers is not None:
+        props['layers'] = ','.join(layers)
 
     if False in [_is_sane(k, v) for k, v in props.items()]:
         raise Exception('Properties are not sane.')
 
-    q = SQL('INSERT INTO {}.{} (minx, miny, maxx, maxy, status, data_id) '
-            'VALUES (%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, %(status)s, %(data_id)s) '
+    q = SQL('INSERT INTO {}.{} (minx, miny, maxx, maxy, status, data_id, layers) '
+            'VALUES (%(minx)s, %(miny)s, %(maxx)s, %(maxy)s, %(status)s, %(data_id)s, %(layers)s) '
             'RETURNING id;').format(Identifier(schema), Identifier('jobs'))
 
     with conn.cursor() as cur:
@@ -68,7 +72,7 @@ def get_job_by_id(job_id, conn, app):
     if not _is_sane_schema(schema):
         raise Exception('Schema is not sane.')
 
-    cols = ['id', 'minx', 'miny', 'maxx', 'maxy', 'data_id', 'status']
+    cols = ['id', 'minx', 'miny', 'maxx', 'maxy', 'data_id', 'status', 'layers']
     q = SQL('SELECT {cols} '
             'FROM {schema}.{table} '
             'WHERE id = %(job_id)s;').format(
@@ -80,6 +84,8 @@ def get_job_by_id(job_id, conn, app):
         cur.execute(q, {'job_id': job_id})
         job = cur.fetchone()
 
+    if job['layers'] is not None:
+        job['layers'] = job['layers'].split(',')
     return job
 
 
@@ -182,7 +188,8 @@ def _is_sane(key, val):
         'maxx': float,
         'maxy': float,
         'status': str,
-        'data_id': str
+        'data_id': str,
+        'layers': str
     }
 
     if not isinstance(key, str):

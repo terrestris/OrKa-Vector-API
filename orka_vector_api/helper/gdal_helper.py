@@ -22,14 +22,14 @@ def _get_gpkg_cmd(filename, layername, sql, host=None, port=None, database=None,
     return cmd
 
 
-def _create_gpkg(data_id, bbox, timeout_e=None, error_e=None, db_props=None, gpkg_path='', layers_path='',
+def _create_gpkg(data_id, bbox, layers, timeout_e=None, error_e=None, db_props=None, gpkg_path='', layers_path='',
                  logfile='orka.log', loglevel='INFO'):
     log_handler = setup_file_logger(logfile=logfile)
     logger = logging.getLogger()
     logger.addHandler(log_handler)
     logger.setLevel(loglevel)
     file_name = os.path.abspath(os.path.join(gpkg_path, data_id + '.gpkg'))
-    layer_sqls = _get_layer_sqls(layers_path)
+    layer_sqls = _get_layer_sqls(layers_path, layer_names=layers)
     for layer_name, layer_sql in layer_sqls.items():
         if timeout_e is not None and timeout_e.isSet():
             break
@@ -50,18 +50,20 @@ def _escape_sql(sql):
     return sql.translate(str.maketrans({'"': r'\"'}))
 
 
-def _get_layer_sqls(layers_path):
+def _get_layer_sqls(layers_path, layer_names=None):
     layers = {}
-    for fname in listdir(layers_path):
-        fpath = join(layers_path, fname)
-        if not isfile(fpath):
+    for f_name in listdir(layers_path):
+        f_path = join(layers_path, f_name)
+        f_root, f_ext = splitext(f_name)
+        if not isfile(f_path):
             continue
-        if not fname.endswith('.sql'):
+        if not f_ext == '.sql':
+            continue
+        if layer_names is not None and f_root not in layer_names:
             continue
 
-        lname, _ = splitext(fname)
-        with open(fpath) as f:
-            layers[lname] = ' '.join(f.read().splitlines())
+        with open(f_path) as f:
+            layers[f_root] = ' '.join(f.read().splitlines())
 
     return layers
 
@@ -76,7 +78,7 @@ def _get_gpkg_sql(layer_sql, bbox):
             f'&& ST_Transform(ST_MakeEnvelope({bbox_str}, 4326), ST_SRID(l.geometry))')
 
 
-def create_gpkg_threaded(app, job_id, *args):
+def create_gpkg_threaded(app, job_id, *args, layers=None):
     db_props = {
         'host': app.config['PG_HOST'],
         'port': app.config['PG_PORT'],
@@ -96,7 +98,7 @@ def create_gpkg_threaded(app, job_id, *args):
     layers_abs_path = os.path.abspath(layers_path)
 
     thread = Thread(target=_create_gpkg_threaded,
-                    args=(response_url, *args,),
+                    args=(response_url, *args, layers),
                     kwargs={
                         'timeout': timeout,
                         'db_props': db_props,
